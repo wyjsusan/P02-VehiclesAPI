@@ -1,13 +1,17 @@
 package com.udacity.vehicles.service;
 
 import com.udacity.vehicles.client.maps.MapsClient;
+import com.udacity.vehicles.client.prices.Price;
 import com.udacity.vehicles.client.prices.PriceClient;
+import com.udacity.vehicles.client.prices.PriceFeignClient;
 import com.udacity.vehicles.domain.Location;
 import com.udacity.vehicles.domain.car.Car;
 import com.udacity.vehicles.domain.car.CarRepository;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,10 +26,11 @@ public class CarService {
 
     private final CarRepository repository;
     private final MapsClient mapsClient;
-    private final PriceClient priceClient;
+//    private final PriceClient priceClient;
+    private final PriceFeignClient priceClient;
 
     @Autowired
-    public CarService(CarRepository repository, MapsClient mapsClient, PriceClient priceClient) {
+    public CarService(CarRepository repository, MapsClient mapsClient, PriceFeignClient priceClient) {
         /**
          * TODO: Add the Maps and Pricing Web Clients you create
          *   in `VehiclesApiApplication` as arguments and set them here.
@@ -42,7 +47,11 @@ public class CarService {
      * @return a list of all vehicles in the CarRepository
      */
     public List<Car> list() {
-        return repository.findAll();
+        return repository.findAll().stream().map(car -> {
+            Price price = priceClient.getPrice(car.getId());
+            car.setPrice(String.format("%s feign %s", price.getCurrency(), price.getPrice()));
+            return car;
+        }).collect(Collectors.toList());
     }
 
     /**
@@ -67,7 +76,8 @@ public class CarService {
          * Note: The car class file uses @transient, meaning you will need to call
          *   the pricing service each time to get the price.
          */
-        car.setPrice(priceClient.getPrice(id));
+        Price price = priceClient.getPrice(id);
+        car.setPrice(String.format("%s feign %s", price.getCurrency(), price.getPrice()));
 
         /**
          * TODO: Use the Maps Web client you create in `VehiclesApiApplication`
